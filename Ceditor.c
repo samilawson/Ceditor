@@ -25,7 +25,9 @@ void enableRawMode()
     raw.c_cflag |= (CS8);
     /* Turns off canonical mode, which reads input byte by byte instead of line by line */
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-
+    /* Add a timeout for read */
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
@@ -34,8 +36,10 @@ int main()
     enableRawMode();
 
     char c;
-    while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q')
+    while (1)
     {
+        char c = '\0';
+        read(STDIN_FILENO, &c, 1);
         if (iscntrl(c))
         {
             printf("%d\r\n", c, c);
@@ -44,6 +48,7 @@ int main()
         {
             printf("%d ('%c')\r\n", c, c);
         }
+        if (c == 'q') break;
     }
     return 0;
 }

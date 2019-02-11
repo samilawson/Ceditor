@@ -18,8 +18,11 @@ void enableRawMode()
     atexit(disableRawMode);
 
     struct termios raw = orig_termios;
-    /* Turns off Ctrl-S and Ctrl-Q  */
-    raw.c_iflag &= ~(IXON);
+    /* Turns off Ctrl-S and Ctrl-Q, fix ctrl-M  */
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    /* Turn off all output processing */
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
     /* Turns off canonical mode, which reads input byte by byte instead of line by line */
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
@@ -35,11 +38,11 @@ int main()
     {
         if (iscntrl(c))
         {
-            printf("%d\n", c, c);
+            printf("%d\r\n", c, c);
         }
         else
         {
-            printf("%d ('%c')\n", c, c);
+            printf("%d ('%c')\r\n", c, c);
         }
     }
     return 0;

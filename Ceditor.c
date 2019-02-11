@@ -16,7 +16,7 @@ void enableRawMode()
     atexit(disableRawMode);
 
     struct termios raw = orig_termios;
-    /* Turns off canonical mode, which reads inout byte by byte instead of line by line */
+    /* Turns off canonical mode, which reads input byte by byte instead of line by line */
     raw.c_lflag &= ~(ECHO | ICANON);
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);

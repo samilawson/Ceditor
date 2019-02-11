@@ -1,0 +1,1 @@
+A text editor in C made from [this](https://viewsourcecode.org/snaptoken/kilo/index.html) tutorial.

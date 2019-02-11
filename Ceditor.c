@@ -18,8 +18,10 @@ void enableRawMode()
     atexit(disableRawMode);
 
     struct termios raw = orig_termios;
+    /* Turns off Ctrl-S and Ctrl-Q  */
+    raw.c_iflag &= ~(IXON);
     /* Turns off canonical mode, which reads input byte by byte instead of line by line */
-    raw.c_lflag &= ~(ECHO | ICANON |ISIG);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }

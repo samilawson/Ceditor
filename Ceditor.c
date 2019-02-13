@@ -1,4 +1,9 @@
 /*** includes ***/
+
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -19,17 +24,18 @@ enum editorKey
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
     ARROW_UP,
-    ARROW_DOWN, 
+    ARROW_DOWN,
     DEL_KEY,
-    HOME_KEY, 
+    HOME_KEY,
     END_KEY,
-    PAGE_UP, 
+    PAGE_UP,
     PAGE_DOWN
 };
 
 /*** data ***/
 
-typedef struct erow {
+typedef struct erow
+{
     int size;
     char *chars;
 
@@ -104,40 +110,58 @@ int editorReadKey()
 
         if (seq[0] == '[')
         {
-            if(seq[1] >= '0' && seq[1] <= '9'){
-                if(read(STDIN_FILENO, &seq[2], 1) != 1) return '\x1b';
-                if(seq[2] == '~'){
-                    switch (seq[1]){
-                        case '1': return HOME_KEY;
-                        case '3': return DEL_KEY;
-                        case '4': return END_KEY;
-                        case '5': return PAGE_UP;
-                        case '6': return PAGE_DOWN;
-                        case '7': return HOME_KEY;
-                        case '8': return END_KEY;
+            if (seq[1] >= '0' && seq[1] <= '9')
+            {
+                if (read(STDIN_FILENO, &seq[2], 1) != 1)
+                    return '\x1b';
+                if (seq[2] == '~')
+                {
+                    switch (seq[1])
+                    {
+                    case '1':
+                        return HOME_KEY;
+                    case '3':
+                        return DEL_KEY;
+                    case '4':
+                        return END_KEY;
+                    case '5':
+                        return PAGE_UP;
+                    case '6':
+                        return PAGE_DOWN;
+                    case '7':
+                        return HOME_KEY;
+                    case '8':
+                        return END_KEY;
                     }
                 }
-            } else {
+            }
+            else
+            {
+                switch (seq[1])
+                {
+                case 'A':
+                    return ARROW_UP;
+                case 'B':
+                    return ARROW_DOWN;
+                case 'C':
+                    return ARROW_RIGHT;
+                case 'D':
+                    return ARROW_LEFT;
+                case 'H':
+                    return HOME_KEY;
+                case 'F':
+                    return END_KEY;
+                }
+            }
+        }
+        else if (seq[0] == 'O')
+        {
             switch (seq[1])
             {
-            case 'A':
-                return ARROW_UP;
-            case 'B':
-                return ARROW_DOWN;
-            case 'C':
-                return ARROW_RIGHT;
-            case 'D':
-                return ARROW_LEFT;
             case 'H':
                 return HOME_KEY;
             case 'F':
                 return END_KEY;
-            }
-        }
-        } else if (seq[0] == 'O'){
-            switch (seq[1]){
-                case 'H': return HOME_KEY;
-                case 'F': return END_KEY;
             }
         }
         return '\x1b';
@@ -192,15 +216,27 @@ int getWindowSize(int *rows, int *cols)
     }
 }
 /*** file i/o ***/
-void editorOpen(){
-    char *line = "Hello, world!";
-    ssize_t linelen = 13;
+void editorOpen(char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+    if(!fp) die("fopen");
 
+    char *line = NULL;
+    size_t linecap = 0;
+    ssize_t linelen;
+    linelen = getline(&line, &linecap, fp);
+    if(linelen != -1) {
+        while (linelen > 0 && (line[linelen -1] == '\n' || line[linelen - 1] == '\r'))
+        linelen--;
+    
     E.row.size = linelen;
     E.row.chars = malloc(linelen + 1);
     memcpy(E.row.chars, line, linelen);
     E.row.chars[linelen] = '\0';
     E.numrows = 1;
+    }
+    free(line);
+    fclose(fp);
 }
 
 /*** append buffer ***/
@@ -236,28 +272,37 @@ void editorDrawRows(struct abuf *ab)
     int y;
     for (y = 0; y < E.screenrows; y++)
     {
-        if (y == E.screenrows / 3)
+        if (y >= E.numrows)
         {
-            char welcome[80];
-            int welcomelen = snprintf(welcome, sizeof(welcome),
-                                      "Ceditor editor -- version %s", CEDITOR_VERSION);
-            if (welcomelen > E.screencols)
-                welcomelen = E.screencols;
-            int padding = (E.screencols - welcomelen) / 2;
-            if (padding)
+            if (E.numrows == 0 && y == E.screenrows / 3)
+            {
+                char welcome[80];
+                int welcomelen = snprintf(welcome, sizeof(welcome),
+                                          "Ceditor editor -- version %s", CEDITOR_VERSION);
+                if (welcomelen > E.screencols)
+                    welcomelen = E.screencols;
+                int padding = (E.screencols - welcomelen) / 2;
+                if (padding)
+                {
+                    abAppend(ab, "~", 1);
+                    padding--;
+                }
+                while (padding--)
+                    abAppend(ab, " ", 1);
+                abAppend(ab, welcome, welcomelen);
+            }
+            else
             {
                 abAppend(ab, "~", 1);
-                padding--;
             }
-            while (padding--)
-                abAppend(ab, " ", 1);
-            abAppend(ab, welcome, welcomelen);
         }
         else
         {
-            abAppend(ab, "~", 1);
+            int len = E.row.size;
+            if (len > E.screencols)
+                len = E.screencols;
+            abAppend(ab, E.row.chars, len);
         }
-
         abAppend(ab, "\x1b[K", 3);
         if (y < E.screenrows - 1)
         {
@@ -289,22 +334,26 @@ void editorMoveCursor(int key)
     switch (key)
     {
     case ARROW_LEFT:
-        if(E.cx != 0){
+        if (E.cx != 0)
+        {
             E.cx--;
         }
         break;
     case ARROW_RIGHT:
-        if(E.cx != E.screencols -1){
+        if (E.cx != E.screencols - 1)
+        {
             E.cx++;
         }
         break;
     case ARROW_UP:
-        if(E.cy != 0){
+        if (E.cy != 0)
+        {
             E.cy--;
         }
         break;
     case ARROW_DOWN:
-        if(E.cy != E.screenrows -1){
+        if (E.cy != E.screenrows - 1)
+        {
             E.cy++;
         }
         break;
@@ -359,13 +408,13 @@ void initEditor()
         die("getWindowSize");
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     enableRawMode();
     initEditor();
-    editorOpen();
-    
-    char c;
+    if (argc >= 2){
+    editorOpen(argv[1]);
+    }
     while (1)
     {
         editorRefreshScreen();

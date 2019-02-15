@@ -215,25 +215,33 @@ int getWindowSize(int *rows, int *cols)
         return 0;
     }
 }
+/*** row operations ***/
+void editorAppendRow(char *s, size_t len)
+{
+    E.row.size = len;
+    E.row.chars = malloc(len + 1);
+    memcpy(E.row.chars, s, len);
+    E.row.chars[len] = '/0';
+    E.numrows = 1;
+}
+
 /*** file i/o ***/
 void editorOpen(char *filename)
 {
     FILE *fp = fopen(filename, "r");
-    if(!fp) die("fopen");
+    if (!fp)
+        die("fopen");
 
     char *line = NULL;
     size_t linecap = 0;
     ssize_t linelen;
     linelen = getline(&line, &linecap, fp);
-    if(linelen != -1) {
-        while (linelen > 0 && (line[linelen -1] == '\n' || line[linelen - 1] == '\r'))
-        linelen--;
-    
-    E.row.size = linelen;
-    E.row.chars = malloc(linelen + 1);
-    memcpy(E.row.chars, line, linelen);
-    E.row.chars[linelen] = '\0';
-    E.numrows = 1;
+    if (linelen != -1)
+    {
+        while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
+            linelen--;
+
+        editorAppendRow(line, linelen);
     }
     free(line);
     fclose(fp);
@@ -404,7 +412,7 @@ void initEditor()
     E.cy = 0;
     E.numrows = 0;
     E.row = NULL;
-    
+
     if (getWindowSize(&E.screenrows, &E.screencols) == -1)
         die("getWindowSize");
 }
@@ -413,8 +421,9 @@ int main(int argc, char *argv[])
 {
     enableRawMode();
     initEditor();
-    if (argc >= 2){
-    editorOpen(argv[1]);
+    if (argc >= 2)
+    {
+        editorOpen(argv[1]);
     }
     while (1)
     {
